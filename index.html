@@ -46,12 +46,94 @@
       max-width: 100vw;
     }
 
-    #hint {
+    #stats-btn {
       margin-top: 10px;
+      padding: 6px 14px;
+      font-family: 'Press Start 2P', monospace;
       font-size: 7px;
-      color: #555;
+      background: transparent;
+      color: #888;
+      border: 1px solid #444;
+      border-radius: 6px;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+    }
+    #stats-btn:hover { color: #ccc; border-color: #888; }
+
+    /* Stats Panel */
+    #stats-panel {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    #stats-panel.visible { display: flex; }
+
+    #stats-box {
+      background: #1e1e2e;
+      border: 2px solid #444;
+      border-radius: 16px;
+      padding: 28px 24px;
+      width: 320px;
+      max-width: 92vw;
+      text-align: center;
+    }
+
+    #stats-box h2 {
+      font-size: 12px;
+      color: #FFD700;
+      margin-bottom: 20px;
       letter-spacing: 1px;
     }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #333;
+      font-size: 8px;
+    }
+    .stat-row:last-of-type { border-bottom: none; }
+    .stat-label { color: #888; }
+    .stat-value { color: #fff; }
+
+    #stats-close, #stats-reset {
+      margin-top: 18px;
+      padding: 10px 18px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 7px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    #stats-close  { background: #228822; color: #fff; margin-right: 8px; }
+    #stats-reset  { background: #882222; color: #fff; }
+    #stats-close:hover { background: #2a9e2a; }
+    #stats-reset:hover { background: #a03030; }
+
+    /* Save toast */
+    #save-toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(34,136,34,0.92);
+      color: #fff;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 7px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 200;
+      white-space: nowrap;
+    }
+    #save-toast.show { opacity: 1; }
   </style>
 </head>
 <body>
@@ -62,14 +144,69 @@
     <span>BEST: <span id="best-display">0</span></span>
   </div>
   <canvas id="game-canvas" width="360" height="540"></canvas>
-  <p id="hint">TAP · CLICK · SPACEBAR TO FLAP</p>
+  <button id="stats-btn">📊 STATS &amp; PROGRESS</button>
 </div>
 
+<!-- Stats / Progress Panel -->
+<div id="stats-panel">
+  <div id="stats-box">
+    <h2>🏆 YOUR PROGRESS</h2>
+    <div class="stat-row"><span class="stat-label">BEST SCORE</span>      <span class="stat-value" id="st-best">0</span></div>
+    <div class="stat-row"><span class="stat-label">LAST SCORE</span>      <span class="stat-value" id="st-last">0</span></div>
+    <div class="stat-row"><span class="stat-label">GAMES PLAYED</span>    <span class="stat-value" id="st-games">0</span></div>
+    <div class="stat-row"><span class="stat-label">TOTAL PIPES PASSED</span><span class="stat-value" id="st-pipes">0</span></div>
+    <div class="stat-row"><span class="stat-label">AVG SCORE / GAME</span><span class="stat-value" id="st-avg">0</span></div>
+    <div class="stat-row"><span class="stat-label">FIRST PLAYED</span>    <span class="stat-value" id="st-first">—</span></div>
+    <div class="stat-row"><span class="stat-label">LAST PLAYED</span>     <span class="stat-value" id="st-date">—</span></div>
+    <div>
+      <button id="stats-close">CLOSE</button>
+      <button id="stats-reset">RESET ALL</button>
+    </div>
+  </div>
+</div>
+
+<div id="save-toast">PROGRESS SAVED ✓</div>
+
 <script>
-  const canvas = document.getElementById('game-canvas');
-  const ctx = canvas.getContext('2d');
+  // ── Save / Load ────────────────────────────────────────────
+  const SAVE_KEY = 'flappy_progress';
+
+  function defaultSave() {
+    return {
+      best:        0,
+      lastScore:   0,
+      gamesPlayed: 0,
+      totalPipes:  0,
+      firstPlayed: new Date().toLocaleDateString(),
+      lastPlayed:  '—',
+    };
+  }
+
+  function loadProgress() {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      return raw ? { ...defaultSave(), ...JSON.parse(raw) } : defaultSave();
+    } catch(e) { return defaultSave(); }
+  }
+
+  function saveProgress(data) {
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+      showToast();
+    } catch(e) { console.warn('Could not save progress:', e); }
+  }
+
+  function showToast() {
+    const t = document.getElementById('save-toast');
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 1800);
+  }
+
+  // ── Canvas setup ───────────────────────────────────────────
+  const canvas  = document.getElementById('game-canvas');
+  const ctx     = canvas.getContext('2d');
   const scoreEl = document.getElementById('score-display');
-  const bestEl = document.getElementById('best-display');
+  const bestEl  = document.getElementById('best-display');
 
   const W = canvas.width;
   const H = canvas.height;
@@ -85,7 +222,10 @@
   const BIRD_X     = 80;
 
   // ── State ──────────────────────────────────────────────────
-  let state, bird, pipes, score, best, frame, groundOff, clouds;
+  let state, bird, pipes, score, frame, groundOff, clouds;
+  let progress = loadProgress();
+
+  function updateBestDisplay() { bestEl.textContent = progress.best; }
 
   function init() {
     state     = 'idle';
@@ -102,8 +242,20 @@
       { x: 260, y: 105, r: 16 },
     ];
     scoreEl.textContent = score;
-    try { best = parseInt(localStorage.getItem('fb_best') || '0'); } catch(e) { best = 0; }
-    bestEl.textContent  = best;
+    updateBestDisplay();
+  }
+
+  function onGameOver() {
+    progress.gamesPlayed++;
+    progress.totalPipes += score;
+    progress.lastScore   = score;
+    progress.lastPlayed  = new Date().toLocaleDateString();
+    if (!progress.firstPlayed || progress.firstPlayed === '—') {
+      progress.firstPlayed = new Date().toLocaleDateString();
+    }
+    if (score > progress.best) progress.best = score;
+    saveProgress(progress);
+    updateBestDisplay();
   }
 
   // ── Input ──────────────────────────────────────────────────
@@ -117,6 +269,35 @@
   canvas.addEventListener('touchstart', e => { e.preventDefault(); flap(); }, { passive: false });
   document.addEventListener('keydown', e => {
     if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); flap(); }
+  });
+
+  // ── Stats panel ────────────────────────────────────────────
+  function openStats() {
+    const p = progress;
+    document.getElementById('st-best').textContent  = p.best;
+    document.getElementById('st-last').textContent  = p.lastScore;
+    document.getElementById('st-games').textContent = p.gamesPlayed;
+    document.getElementById('st-pipes').textContent = p.totalPipes;
+    const avg = p.gamesPlayed > 0 ? (p.totalPipes / p.gamesPlayed).toFixed(1) : '0.0';
+    document.getElementById('st-avg').textContent   = avg;
+    document.getElementById('st-first').textContent = p.firstPlayed || '—';
+    document.getElementById('st-date').textContent  = p.lastPlayed  || '—';
+    document.getElementById('stats-panel').classList.add('visible');
+  }
+
+  document.getElementById('stats-btn').addEventListener('click', openStats);
+
+  document.getElementById('stats-close').addEventListener('click', () => {
+    document.getElementById('stats-panel').classList.remove('visible');
+  });
+
+  document.getElementById('stats-reset').addEventListener('click', () => {
+    if (confirm('Reset ALL progress? This cannot be undone.')) {
+      progress = defaultSave();
+      saveProgress(progress);
+      updateBestDisplay();
+      openStats();
+    }
   });
 
   // ── Pipe spawning ──────────────────────────────────────────
@@ -153,7 +334,6 @@
     c.closePath();
   }
 
-  // ── Draw: Sky ──────────────────────────────────────────────
   function drawSky() {
     const grad = ctx.createLinearGradient(0, 0, 0, H - GROUND_H);
     grad.addColorStop(0, '#5BB8E8');
@@ -162,29 +342,24 @@
     ctx.fillRect(0, 0, W, H - GROUND_H);
   }
 
-  // ── Draw: Clouds ───────────────────────────────────────────
   function drawClouds() {
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
     for (const c of clouds) {
       ctx.beginPath();
-      ctx.arc(c.x,              c.y,              c.r,       0, Math.PI * 2);
-      ctx.arc(c.x + c.r * 0.9, c.y - c.r * 0.3,  c.r * 0.7, 0, Math.PI * 2);
-      ctx.arc(c.x - c.r * 0.9, c.y - c.r * 0.2,  c.r * 0.6, 0, Math.PI * 2);
+      ctx.arc(c.x,              c.y,             c.r,       0, Math.PI * 2);
+      ctx.arc(c.x + c.r * 0.9, c.y - c.r * 0.3, c.r * 0.7, 0, Math.PI * 2);
+      ctx.arc(c.x - c.r * 0.9, c.y - c.r * 0.2, c.r * 0.6, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  // ── Draw: Ground ───────────────────────────────────────────
   function drawGround() {
     ctx.fillStyle = '#6ABF4B';
     ctx.fillRect(0, H - GROUND_H, W, 10);
-
     ctx.fillStyle = '#d4a85e';
     ctx.fillRect(0, H - GROUND_H + 10, W, GROUND_H - 10);
-
     ctx.fillStyle = '#b8903e';
     ctx.fillRect(0, H - GROUND_H + 18, W, 5);
-
     ctx.fillStyle = '#c09040';
     for (let i = 0; i < 7; i++) {
       const ox = ((groundOff + i * 60) % (W + 60)) - 30;
@@ -192,95 +367,59 @@
     }
   }
 
-  // ── Draw: Pipe ─────────────────────────────────────────────
   function drawPipe(p) {
-    const capH    = 18;
-    const capExtra = 6;
-    const botY    = p.topH + PIPE_GAP;
+    const capH = 18, capExtra = 6;
+    const botY = p.topH + PIPE_GAP;
 
-    // bottom pipe body
     ctx.fillStyle = '#4CAF50';
     ctx.fillRect(p.x, botY + capH, PIPE_W, H - GROUND_H - botY - capH);
     ctx.fillStyle = '#388E3C';
     ctx.fillRect(p.x + PIPE_W - 8, botY + capH, 8, H - GROUND_H - botY - capH);
-
-    // bottom cap
     ctx.fillStyle = '#2E7D32';
     roundRect(ctx, p.x - capExtra / 2, botY, PIPE_W + capExtra, capH, 4);
     ctx.fill();
 
-    // top pipe body
     ctx.fillStyle = '#4CAF50';
     ctx.fillRect(p.x, 0, PIPE_W, p.topH - capH);
     ctx.fillStyle = '#388E3C';
     ctx.fillRect(p.x + PIPE_W - 8, 0, 8, p.topH - capH);
-
-    // top cap
     ctx.fillStyle = '#2E7D32';
     roundRect(ctx, p.x - capExtra / 2, p.topH - capH, PIPE_W + capExtra, capH, 4);
     ctx.fill();
   }
 
-  // ── Draw: Bird ─────────────────────────────────────────────
   function drawBird() {
     const { x, y, angle, wingAngle } = bird;
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(angle);
 
-    // wing (behind body)
     ctx.fillStyle = '#FFA500';
     ctx.beginPath();
-    const wy = Math.sin(wingAngle) * 8;
-    ctx.ellipse(-6, wy, 10, 6, -0.4, 0, Math.PI * 2);
+    ctx.ellipse(-6, Math.sin(wingAngle) * 8, 10, 6, -0.4, 0, Math.PI * 2);
     ctx.fill();
 
-    // body
     ctx.fillStyle = '#FFD700';
     ctx.beginPath();
     ctx.ellipse(0, 0, BIRD_R, BIRD_R - 2, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = '#CC9900';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+    ctx.strokeStyle = '#CC9900'; ctx.lineWidth = 1.5; ctx.stroke();
 
-    // belly highlight
     ctx.fillStyle = '#FFF3C0';
     ctx.beginPath();
     ctx.ellipse(4, 4, 9, 7, 0.3, 0, Math.PI * 2);
     ctx.fill();
 
-    // eye white
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(7, -5, 6, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(7, -5, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#222222'; ctx.beginPath(); ctx.arc(9, -5, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(10, -6.5, 1.2, 0, Math.PI * 2); ctx.fill();
 
-    // pupil
-    ctx.fillStyle = '#222222';
-    ctx.beginPath();
-    ctx.arc(9, -5, 3, 0, Math.PI * 2);
-    ctx.fill();
-
-    // eye gleam
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(10, -6.5, 1.2, 0, Math.PI * 2);
-    ctx.fill();
-
-    // beak
     ctx.fillStyle = '#FF6B00';
-    ctx.beginPath();
-    ctx.moveTo(13, -2);
-    ctx.lineTo(21, 0);
-    ctx.lineTo(13,  4);
-    ctx.closePath();
-    ctx.fill();
+    ctx.beginPath(); ctx.moveTo(13, -2); ctx.lineTo(21, 0); ctx.lineTo(13, 4); ctx.closePath(); ctx.fill();
 
     ctx.restore();
   }
 
-  // ── Draw: HUD score ────────────────────────────────────────
   function drawScore() {
     if (state !== 'playing') return;
     ctx.textAlign   = 'center';
@@ -293,7 +432,6 @@
     ctx.textAlign   = 'left';
   }
 
-  // ── Draw: Overlays ─────────────────────────────────────────
   function drawOverlay() {
     if (state === 'idle') {
       ctx.fillStyle = 'rgba(0,0,0,0.28)';
@@ -303,16 +441,11 @@
       roundRect(ctx, W/2 - 110, H/2 - 70, 220, 130, 14);
       ctx.fill();
 
-      ctx.fillStyle   = '#2a2a2a';
-      ctx.font        = '13px "Press Start 2P"';
-      ctx.textAlign   = 'center';
+      ctx.fillStyle = '#2a2a2a'; ctx.font = '13px "Press Start 2P"'; ctx.textAlign = 'center';
       ctx.fillText('FLAPPY BIRD', W/2, H/2 - 35);
-
-      ctx.font      = '7px "Press Start 2P"';
-      ctx.fillStyle = '#555555';
+      ctx.font = '7px "Press Start 2P"'; ctx.fillStyle = '#555555';
       ctx.fillText('TAP / SPACE / CLICK', W/2, H/2);
-      ctx.fillText('TO FLAP',             W/2, H/2 + 20);
-
+      ctx.fillText('TO FLAP', W/2, H/2 + 20);
       ctx.font = '28px sans-serif';
       ctx.fillText('🐦', W/2, H/2 + 52);
 
@@ -321,114 +454,72 @@
       ctx.fillRect(0, 0, W, H);
 
       ctx.fillStyle = 'rgba(255,255,255,0.95)';
-      roundRect(ctx, W/2 - 120, H/2 - 90, 240, 175, 14);
+      roundRect(ctx, W/2 - 120, H/2 - 95, 240, 185, 14);
       ctx.fill();
 
-      ctx.fillStyle = '#CC2222';
-      ctx.font      = '13px "Press Start 2P"';
-      ctx.textAlign = 'center';
-      ctx.fillText('GAME OVER', W/2, H/2 - 55);
+      ctx.fillStyle = '#CC2222'; ctx.font = '13px "Press Start 2P"'; ctx.textAlign = 'center';
+      ctx.fillText('GAME OVER', W/2, H/2 - 60);
 
-      ctx.fillStyle = '#333333';
-      ctx.font      = '8px "Press Start 2P"';
-      ctx.fillText('SCORE: ' + score, W/2, H/2 - 22);
-      ctx.fillText('BEST:  ' + best,  W/2, H/2 + 2);
+      ctx.fillStyle = '#333333'; ctx.font = '8px "Press Start 2P"';
+      ctx.fillText('SCORE: ' + score,                W/2, H/2 - 27);
+      ctx.fillText('BEST:  ' + progress.best,        W/2, H/2 -  7);
+      ctx.fillText('GAMES: ' + progress.gamesPlayed, W/2, H/2 + 13);
 
-      if (score >= best && score > 0) {
+      if (score >= progress.best && score > 0) {
         ctx.fillStyle = '#E67E00';
-        ctx.fillText('NEW BEST!', W/2, H/2 + 26);
+        ctx.fillText('NEW BEST!', W/2, H/2 + 33);
       }
 
-      // Play Again button
       ctx.fillStyle = '#228822';
-      roundRect(ctx, W/2 - 70, H/2 + 44, 140, 34, 8);
+      roundRect(ctx, W/2 - 70, H/2 + 50, 140, 34, 8);
       ctx.fill();
-      ctx.fillStyle = '#ffffff';
-      ctx.font      = '8px "Press Start 2P"';
-      ctx.fillText('PLAY AGAIN', W/2, H/2 + 65);
+      ctx.fillStyle = '#ffffff'; ctx.font = '8px "Press Start 2P"';
+      ctx.fillText('PLAY AGAIN', W/2, H/2 + 71);
     }
-
     ctx.textAlign = 'left';
   }
 
   // ── Update ─────────────────────────────────────────────────
   function update() {
     frame++;
-
     if (state === 'playing') {
-      // Physics
       bird.vy        += GRAVITY;
       bird.y         += bird.vy;
       bird.angle      = Math.max(-0.5, Math.min(Math.PI / 2.5, bird.vy * 0.055));
       bird.wingAngle += 0.35;
-
-      // Scroll ground
       groundOff = (groundOff + PIPE_SPEED) % 60;
 
-      // Scroll clouds
-      for (const c of clouds) {
-        c.x -= 0.4;
-        if (c.x < -30) c.x = W + 30;
-      }
-
-      // Spawn pipes
+      for (const c of clouds) { c.x -= 0.4; if (c.x < -30) c.x = W + 30; }
       if (frame % 88 === 0) spawnPipe();
 
-      // Move & score pipes
       for (const p of pipes) {
         p.x -= PIPE_SPEED;
-        if (!p.passed && p.x + PIPE_W < bird.x) {
-          p.passed = true;
-          score++;
-          scoreEl.textContent = score;
-        }
+        if (!p.passed && p.x + PIPE_W < bird.x) { p.passed = true; score++; scoreEl.textContent = score; }
       }
       pipes = pipes.filter(p => p.x > -PIPE_W - 10);
 
-      // Collision check
-      if (checkCollision()) {
-        state = 'dead';
-        if (score > best) {
-          best = score;
-          bestEl.textContent = best;
-          try { localStorage.setItem('fb_best', best); } catch(e) {}
-        }
-      }
+      if (checkCollision()) { state = 'dead'; onGameOver(); }
 
     } else if (state === 'idle') {
-      // Idle float animation
       bird.y          = H / 2 - 40 + Math.sin(frame * 0.04) * 8;
       bird.wingAngle += 0.2;
       bird.angle      = Math.sin(frame * 0.04) * 0.12;
-
-      for (const c of clouds) {
-        c.x -= 0.3;
-        if (c.x < -30) c.x = W + 30;
-      }
+      for (const c of clouds) { c.x -= 0.3; if (c.x < -30) c.x = W + 30; }
     }
   }
 
   // ── Render ─────────────────────────────────────────────────
   function render() {
-    drawSky();
-    drawClouds();
+    drawSky(); drawClouds();
     for (const p of pipes) drawPipe(p);
-    drawGround();
-    drawBird();
-    drawScore();
-    drawOverlay();
+    drawGround(); drawBird(); drawScore(); drawOverlay();
   }
 
   // ── Game loop ──────────────────────────────────────────────
-  function loop() {
-    update();
-    render();
-    requestAnimationFrame(loop);
-  }
+  function loop() { update(); render(); requestAnimationFrame(loop); }
 
   init();
   loop();
 </script>
-
 </body>
 </html>
