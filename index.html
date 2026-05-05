@@ -111,12 +111,25 @@
       border-radius: 8px;
       cursor: pointer;
     }
-    .btn-green  { background: #228822; color: #fff; margin-right: 6px; }
-    .btn-green:hover  { background: #2aaa2a; }
-    .btn-red    { background: #882222; color: #fff; }
-    .btn-red:hover    { background: #aa2a2a; }
-    .btn-gold   { background: #b8860b; color: #fff; }
-    .btn-gold:hover   { background: #d4a017; }
+    .btn-green { background: #228822; color: #fff; margin-right: 6px; }
+    .btn-green:hover { background: #2aaa2a; }
+    .btn-red   { background: #882222; color: #fff; }
+    .btn-red:hover   { background: #aa2a2a; }
+    .btn-gold  { background: #b8860b; color: #fff; }
+    .btn-gold:hover  { background: #d4a017; }
+
+    /* ── Setup notice ── */
+    #setup-notice {
+      background: #2a1a00;
+      border: 1px solid #b8860b;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 7px;
+      color: #FFD700;
+      line-height: 2;
+      margin-bottom: 14px;
+      text-align: left;
+    }
 
     /* ── Leaderboard table ── */
     #lb-table {
@@ -134,29 +147,17 @@
     }
     #lb-table th:last-child,
     #lb-table td:last-child { text-align: right; }
-
     #lb-table td {
       padding: 8px 4px;
       border-bottom: 1px solid #2a2a3a;
       color: #ccc;
     }
     #lb-table tr:last-child td { border-bottom: none; }
-
     .rank-1 td { color: #FFD700 !important; }
     .rank-2 td { color: #C0C0C0 !important; }
     .rank-3 td { color: #CD7F32 !important; }
-
-    .rank-badge {
-      display: inline-block;
-      width: 20px;
-      text-align: center;
-    }
-
-    #lb-loading {
-      color: #666;
-      font-size: 8px;
-      padding: 20px 0;
-    }
+    .rank-badge { display: inline-block; width: 20px; text-align: center; }
+    #lb-status { color: #666; font-size: 8px; padding: 20px 0; }
 
     /* ── Name entry modal ── */
     #name-modal {
@@ -179,19 +180,8 @@
       max-width: 92vw;
       text-align: center;
     }
-
-    #name-box h3 {
-      font-size: 10px;
-      color: #FFD700;
-      margin-bottom: 6px;
-    }
-
-    #name-box p {
-      font-size: 7px;
-      color: #888;
-      margin-bottom: 18px;
-      line-height: 1.8;
-    }
+    #name-box h3 { font-size: 10px; color: #FFD700; margin-bottom: 6px; }
+    #name-box p  { font-size: 7px; color: #888; margin-bottom: 18px; line-height: 1.8; }
 
     #player-name-input {
       width: 100%;
@@ -239,7 +229,6 @@
       bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(34,136,34,0.92);
       color: #fff;
       font-family: 'Press Start 2P', monospace;
       font-size: 7px;
@@ -272,14 +261,14 @@
 <div class="panel-bg" id="stats-panel">
   <div class="panel-box">
     <h2 style="color:#FFD700;">🏆 MY PROGRESS</h2>
-    <div class="stat-row"><span class="stat-label">BEST SCORE</span>       <span class="stat-value" id="st-best">0</span></div>
-    <div class="stat-row"><span class="stat-label">LAST SCORE</span>       <span class="stat-value" id="st-last">0</span></div>
-    <div class="stat-row"><span class="stat-label">GAMES PLAYED</span>     <span class="stat-value" id="st-games">0</span></div>
+    <div class="stat-row"><span class="stat-label">BEST SCORE</span>        <span class="stat-value" id="st-best">0</span></div>
+    <div class="stat-row"><span class="stat-label">LAST SCORE</span>        <span class="stat-value" id="st-last">0</span></div>
+    <div class="stat-row"><span class="stat-label">GAMES PLAYED</span>      <span class="stat-value" id="st-games">0</span></div>
     <div class="stat-row"><span class="stat-label">TOTAL PIPES PASSED</span><span class="stat-value" id="st-pipes">0</span></div>
-    <div class="stat-row"><span class="stat-label">AVG SCORE / GAME</span> <span class="stat-value" id="st-avg">0.0</span></div>
-    <div class="stat-row"><span class="stat-label">PLAYER NAME</span>      <span class="stat-value" id="st-name">—</span></div>
-    <div class="stat-row"><span class="stat-label">FIRST PLAYED</span>     <span class="stat-value" id="st-first">—</span></div>
-    <div class="stat-row"><span class="stat-label">LAST PLAYED</span>      <span class="stat-value" id="st-date">—</span></div>
+    <div class="stat-row"><span class="stat-label">AVG SCORE / GAME</span>  <span class="stat-value" id="st-avg">0.0</span></div>
+    <div class="stat-row"><span class="stat-label">PLAYER NAME</span>       <span class="stat-value" id="st-name">—</span></div>
+    <div class="stat-row"><span class="stat-label">FIRST PLAYED</span>      <span class="stat-value" id="st-first">—</span></div>
+    <div class="stat-row"><span class="stat-label">LAST PLAYED</span>       <span class="stat-value" id="st-date">—</span></div>
     <div>
       <button class="panel-btn btn-green" id="stats-close">CLOSE</button>
       <button class="panel-btn btn-red"   id="stats-reset">RESET</button>
@@ -291,14 +280,17 @@
 <div class="panel-bg" id="lb-panel">
   <div class="panel-box">
     <h2 style="color:#FFD700;">🌍 GLOBAL LEADERBOARD</h2>
-    <div id="lb-loading">LOADING...</div>
+    <div id="setup-notice" style="display:none;">
+      ⚠️ SETUP NEEDED:<br>
+      1. Sign up free at jsonbin.io<br>
+      2. Create a bin with value: []<br>
+      3. Copy BIN_ID &amp; API_KEY<br>
+      4. Paste into index.html line 2-3
+    </div>
+    <div id="lb-status">LOADING...</div>
     <table id="lb-table" style="display:none;">
       <thead>
-        <tr>
-          <th>#</th>
-          <th>PLAYER</th>
-          <th>SCORE</th>
-        </tr>
+        <tr><th>#</th><th>PLAYER</th><th>SCORE</th><th>DATE</th></tr>
       </thead>
       <tbody id="lb-body"></tbody>
     </table>
@@ -309,12 +301,13 @@
   </div>
 </div>
 
-<!-- Name Entry Modal (shown after a high score) -->
+<!-- Name Entry Modal -->
 <div id="name-modal">
   <div id="name-box">
     <h3>🎉 SUBMIT SCORE!</h3>
     <p>Score: <span id="modal-score" style="color:#FFD700;"></span><br>Enter your name for the<br>global leaderboard</p>
-    <input id="player-name-input" type="text" maxlength="16" placeholder="YOUR NAME" autocomplete="off" spellcheck="false" />
+    <input id="player-name-input" type="text" maxlength="16" placeholder="YOUR NAME"
+           autocomplete="off" spellcheck="false" />
     <div>
       <button id="submit-score-btn">SUBMIT</button>
       <button id="skip-submit-btn">SKIP</button>
@@ -322,97 +315,123 @@
   </div>
 </div>
 
-<div id="save-toast">PROGRESS SAVED ✓</div>
+<div id="save-toast"></div>
 
 <script>
-// ══════════════════════════════════════════════════════════════
-// LEADERBOARD  — uses Claude artifact persistent shared storage
-// ══════════════════════════════════════════════════════════════
-const LB_KEY      = 'flappy_leaderboard_v1';
-const LB_MAX      = 10;
+// ═══════════════════════════════════════════════════════════════
+//  ▼▼▼  PASTE YOUR JSONBIN CREDENTIALS HERE  ▼▼▼
+// ═══════════════════════════════════════════════════════════════
+const JSONBIN_BIN_ID  = '69f9fc6236566621a82a1c91 ';
+const JSONBIN_API_KEY = '$2a$10$JwmPTRXKUT2Kxq12to.L2OD2F4P6WLu4rmpyHxeff6xarVzV2bOSy';   // e.g. "$2a$10$abcdef..."
+// ═══════════════════════════════════════════════════════════════
 
-async function lbGet() {
+const LB_MAX = 10;
+const configured = JSONBIN_BIN_ID !== 'YOUR_BIN_ID_HERE' && JSONBIN_API_KEY !== 'YOUR_API_KEY_HERE';
+
+// ── JSONBin helpers ───────────────────────────────────────────
+async function lbFetch() {
+  if (!configured) return [];
   try {
-    const res = await window.storage.get(LB_KEY, true); // shared=true
-    return res ? JSON.parse(res.value) : [];
-  } catch(e) { return []; }
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+      headers: { 'X-Master-Key': JSONBIN_API_KEY }
+    });
+    if (!res.ok) throw new Error('fetch failed');
+    const data = await res.json();
+    return Array.isArray(data.record) ? data.record : [];
+  } catch(e) { console.warn('LB fetch error:', e); return null; }
+}
+
+async function lbSave(board) {
+  if (!configured) return false;
+  try {
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_API_KEY },
+      body: JSON.stringify(board)
+    });
+    return res.ok;
+  } catch(e) { console.warn('LB save error:', e); return false; }
 }
 
 async function lbSubmit(name, score) {
-  try {
-    let board = await lbGet();
-    // Remove old entry for same name (keep best)
-    board = board.filter(e => e.name.toLowerCase() !== name.toLowerCase());
-    board.push({ name: name.trim(), score, date: new Date().toLocaleDateString() });
-    board.sort((a, b) => b.score - a.score);
-    board = board.slice(0, LB_MAX);
-    await window.storage.set(LB_KEY, JSON.stringify(board), true); // shared=true
-    return board;
-  } catch(e) { console.warn('Leaderboard save failed:', e); return []; }
+  let board = await lbFetch();
+  if (board === null) return false;
+  // Remove previous entry for same player name (keep best only)
+  board = board.filter(e => e.name.toLowerCase() !== name.toLowerCase());
+  board.push({ name: name.trim(), score, date: new Date().toLocaleDateString() });
+  board.sort((a, b) => b.score - a.score);
+  board = board.slice(0, LB_MAX);
+  return await lbSave(board);
 }
 
 async function renderLeaderboard() {
-  const loading = document.getElementById('lb-loading');
-  const table   = document.getElementById('lb-table');
-  const tbody   = document.getElementById('lb-body');
-  loading.style.display = 'block';
-  table.style.display   = 'none';
+  const statusEl = document.getElementById('lb-status');
+  const tableEl  = document.getElementById('lb-table');
+  const noticeEl = document.getElementById('setup-notice');
+  const tbody    = document.getElementById('lb-body');
 
-  const board = await lbGet();
-  loading.style.display = 'none';
+  tableEl.style.display  = 'none';
+  noticeEl.style.display = 'none';
+  statusEl.style.display = 'block';
+  statusEl.textContent   = 'LOADING...';
 
-  if (!board.length) {
-    loading.textContent   = 'NO SCORES YET. BE THE FIRST!';
-    loading.style.display = 'block';
+  if (!configured) {
+    statusEl.style.display = 'none';
+    noticeEl.style.display = 'block';
     return;
   }
 
+  const board = await lbFetch();
+
+  if (board === null) {
+    statusEl.textContent = 'ERROR LOADING. CHECK YOUR CREDENTIALS.';
+    return;
+  }
+
+  if (!board.length) {
+    statusEl.textContent = 'NO SCORES YET. BE THE FIRST!';
+    return;
+  }
+
+  statusEl.style.display = 'none';
   const medals = ['🥇','🥈','🥉'];
   tbody.innerHTML = board.map((e, i) => `
     <tr class="${i < 3 ? 'rank-'+(i+1) : ''}">
       <td><span class="rank-badge">${medals[i] || (i+1)}</span></td>
       <td>${escHtml(e.name)}</td>
       <td>${e.score}</td>
+      <td style="font-size:6px;color:#555;">${e.date||''}</td>
     </tr>
   `).join('');
-  table.style.display = 'table';
+  tableEl.style.display = 'table';
 }
 
 function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// ══════════════════════════════════════════════════════════════
-// LOCAL SAVE / LOAD
-// ══════════════════════════════════════════════════════════════
+// ── Local save / load ─────────────────────────────────────────
 const SAVE_KEY = 'flappy_progress';
 
 function defaultSave() {
   return { best:0, lastScore:0, gamesPlayed:0, totalPipes:0,
-           playerName:'', firstPlayed: new Date().toLocaleDateString(), lastPlayed:'—' };
+           playerName:'', firstPlayed:new Date().toLocaleDateString(), lastPlayed:'—' };
 }
-
 function loadProgress() {
   try { const r = localStorage.getItem(SAVE_KEY); return r ? {...defaultSave(),...JSON.parse(r)} : defaultSave(); }
   catch(e) { return defaultSave(); }
 }
-
 function saveProgress(data) {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); showToast('PROGRESS SAVED ✓', '#228822'); }
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); showToast('PROGRESS SAVED ✓','rgba(34,136,34,0.92)'); }
   catch(e) {}
 }
-
-function showToast(msg, color) {
+function showToast(msg, bg) {
   const t = document.getElementById('save-toast');
-  t.textContent = msg;
-  t.style.background = color || 'rgba(34,136,34,0.92)';
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2000);
+  t.textContent = msg; t.style.background = bg||'rgba(34,136,34,0.92)';
+  t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 2200);
 }
 
-// ══════════════════════════════════════════════════════════════
-// CANVAS / GAME
-// ══════════════════════════════════════════════════════════════
+// ── Canvas / game ─────────────────────────────────────────────
 const canvas  = document.getElementById('game-canvas');
 const ctx     = canvas.getContext('2d');
 const scoreEl = document.getElementById('score-display');
@@ -429,8 +448,8 @@ function updateBestDisplay() { bestEl.textContent = progress.best; }
 
 function init() {
   state='idle';
-  bird={ x:BIRD_X, y:H/2-40, vy:0, angle:0, wingAngle:0 };
-  pipes=[]; score=0; frame=0; groundOff=0;
+  bird={x:BIRD_X,y:H/2-40,vy:0,angle:0,wingAngle:0};
+  pipes=[];score=0;frame=0;groundOff=0;
   clouds=[{x:60,y:70,r:18},{x:180,y:50,r:14},{x:300,y:80,r:20},{x:100,y:110,r:12},{x:260,y:105,r:16}];
   scoreEl.textContent=score;
   updateBestDisplay();
@@ -441,22 +460,17 @@ async function onGameOver() {
   progress.totalPipes += score;
   progress.lastScore   = score;
   progress.lastPlayed  = new Date().toLocaleDateString();
-  if (!progress.firstPlayed || progress.firstPlayed==='—') progress.firstPlayed=new Date().toLocaleDateString();
+  if (!progress.firstPlayed||progress.firstPlayed==='—') progress.firstPlayed=new Date().toLocaleDateString();
   if (score > progress.best) progress.best = score;
   saveProgress(progress);
   updateBestDisplay();
-
-  // Prompt leaderboard submission if score > 0
-  if (score > 0) {
-    showNameModal(score);
-  }
+  if (score > 0) showNameModal(score);
 }
 
-// ── Name modal ─────────────────────────────────────────────
+// ── Name modal ────────────────────────────────────────────────
 function showNameModal(s) {
   document.getElementById('modal-score').textContent = s;
-  const savedName = progress.playerName || '';
-  document.getElementById('player-name-input').value = savedName;
+  document.getElementById('player-name-input').value = progress.playerName || '';
   document.getElementById('name-modal').classList.add('visible');
 }
 
@@ -467,81 +481,74 @@ document.getElementById('submit-score-btn').addEventListener('click', async () =
   progress.playerName = name;
   saveProgress(progress);
   document.getElementById('name-modal').classList.remove('visible');
-  showToast('SUBMITTING...', '#b8860b');
-  await lbSubmit(name, score);
-  showToast('SCORE SUBMITTED! 🌍', '#1a7ab8');
+  if (!configured) {
+    showToast('⚠️ JSONBIN NOT CONFIGURED','rgba(180,100,0,0.95)'); return;
+  }
+  showToast('SUBMITTING...','rgba(184,134,11,0.95)');
+  const ok = await lbSubmit(name, score);
+  showToast(ok ? 'SCORE SUBMITTED! 🌍' : 'SUBMIT FAILED. TRY AGAIN.',
+            ok ? 'rgba(26,122,184,0.95)' : 'rgba(150,30,30,0.95)');
 });
 
 document.getElementById('skip-submit-btn').addEventListener('click', () => {
   document.getElementById('name-modal').classList.remove('visible');
 });
 
-// ── Stats panel ─────────────────────────────────────────────
+// ── Stats panel ───────────────────────────────────────────────
 document.getElementById('stats-btn').addEventListener('click', () => {
-  const p = progress;
+  const p=progress;
   document.getElementById('st-best').textContent  = p.best;
   document.getElementById('st-last').textContent  = p.lastScore;
   document.getElementById('st-games').textContent = p.gamesPlayed;
   document.getElementById('st-pipes').textContent = p.totalPipes;
-  document.getElementById('st-avg').textContent   = p.gamesPlayed>0 ? (p.totalPipes/p.gamesPlayed).toFixed(1) : '0.0';
-  document.getElementById('st-name').textContent  = p.playerName || '—';
-  document.getElementById('st-first').textContent = p.firstPlayed || '—';
-  document.getElementById('st-date').textContent  = p.lastPlayed  || '—';
+  document.getElementById('st-avg').textContent   = p.gamesPlayed>0?(p.totalPipes/p.gamesPlayed).toFixed(1):'0.0';
+  document.getElementById('st-name').textContent  = p.playerName||'—';
+  document.getElementById('st-first').textContent = p.firstPlayed||'—';
+  document.getElementById('st-date').textContent  = p.lastPlayed||'—';
   document.getElementById('stats-panel').classList.add('visible');
 });
-document.getElementById('stats-close').addEventListener('click', () => document.getElementById('stats-panel').classList.remove('visible'));
-document.getElementById('stats-reset').addEventListener('click', () => {
-  if (confirm('Reset ALL local progress? Leaderboard scores are kept.')) {
-    progress = defaultSave();
-    saveProgress(progress);
-    updateBestDisplay();
-    document.getElementById('stats-panel').classList.remove('visible');
-  }
+document.getElementById('stats-close').addEventListener('click', ()=>document.getElementById('stats-panel').classList.remove('visible'));
+document.getElementById('stats-reset').addEventListener('click', ()=>{
+  if(confirm('Reset ALL local progress? Leaderboard scores are kept.')){ progress=defaultSave(); saveProgress(progress); updateBestDisplay(); document.getElementById('stats-panel').classList.remove('visible'); }
 });
 
-// ── Leaderboard panel ────────────────────────────────────────
-document.getElementById('lb-btn').addEventListener('click', () => {
-  document.getElementById('lb-panel').classList.add('visible');
-  renderLeaderboard();
-});
-document.getElementById('lb-close').addEventListener('click',   () => document.getElementById('lb-panel').classList.remove('visible'));
-document.getElementById('lb-refresh').addEventListener('click', () => renderLeaderboard());
+// ── Leaderboard panel ─────────────────────────────────────────
+document.getElementById('lb-btn').addEventListener('click',     ()=>{ document.getElementById('lb-panel').classList.add('visible'); renderLeaderboard(); });
+document.getElementById('lb-close').addEventListener('click',   ()=>document.getElementById('lb-panel').classList.remove('visible'));
+document.getElementById('lb-refresh').addEventListener('click', ()=>renderLeaderboard());
 
 // ── Input ─────────────────────────────────────────────────────
 function flap() {
-  if (state==='dead') { init(); return; }
-  if (state==='idle') state='playing';
+  if(state==='dead'){init();return;}
+  if(state==='idle')state='playing';
   bird.vy=FLAP_VEL;
 }
 canvas.addEventListener('click', flap);
-canvas.addEventListener('touchstart', e=>{ e.preventDefault(); flap(); }, {passive:false});
-document.addEventListener('keydown', e=>{ if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();flap();} });
+canvas.addEventListener('touchstart', e=>{e.preventDefault();flap();},{passive:false});
+document.addEventListener('keydown', e=>{if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();flap();}});
 
-// ── Collision ─────────────────────────────────────────────────
-function checkCollision() {
+// ── Physics / collision ───────────────────────────────────────
+function checkCollision(){
   const r=BIRD_R-4;
-  if (bird.y+r>=H-GROUND_H||bird.y-r<=0) return true;
-  for (const p of pipes) {
-    if (bird.x+r>p.x+6&&bird.x-r<p.x+PIPE_W-6)
-      if (bird.y-r<p.topH||bird.y+r>p.topH+PIPE_GAP) return true;
-  }
+  if(bird.y+r>=H-GROUND_H||bird.y-r<=0) return true;
+  for(const p of pipes)
+    if(bird.x+r>p.x+6&&bird.x-r<p.x+PIPE_W-6)
+      if(bird.y-r<p.topH||bird.y+r>p.topH+PIPE_GAP) return true;
   return false;
 }
 
-// ── Draw helpers ─────────────────────────────────────────────
+// ── Draw helpers ──────────────────────────────────────────────
 function roundRect(c,x,y,w,h,r){
   c.beginPath();c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.quadraticCurveTo(x+w,y,x+w,y+r);
   c.lineTo(x+w,y+h-r);c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
   c.lineTo(x+r,y+h);c.quadraticCurveTo(x,y+h,x,y+h-r);
   c.lineTo(x,y+r);c.quadraticCurveTo(x,y,x+r,y);c.closePath();
 }
-
 function drawSky(){
   const g=ctx.createLinearGradient(0,0,0,H-GROUND_H);
   g.addColorStop(0,'#5BB8E8');g.addColorStop(1,'#C8EAFF');
   ctx.fillStyle=g;ctx.fillRect(0,0,W,H-GROUND_H);
 }
-
 function drawClouds(){
   ctx.fillStyle='rgba(255,255,255,0.85)';
   for(const c of clouds){
@@ -552,7 +559,6 @@ function drawClouds(){
     ctx.fill();
   }
 }
-
 function drawGround(){
   ctx.fillStyle='#6ABF4B';ctx.fillRect(0,H-GROUND_H,W,10);
   ctx.fillStyle='#d4a85e';ctx.fillRect(0,H-GROUND_H+10,W,GROUND_H-10);
@@ -560,7 +566,6 @@ function drawGround(){
   ctx.fillStyle='#c09040';
   for(let i=0;i<7;i++){const ox=((groundOff+i*60)%(W+60))-30;ctx.fillRect(ox,H-GROUND_H+26,38,3);}
 }
-
 function drawPipe(p){
   const capH=18,capEx=6,botY=p.topH+PIPE_GAP;
   ctx.fillStyle='#4CAF50';ctx.fillRect(p.x,botY+capH,PIPE_W,H-GROUND_H-botY-capH);
@@ -570,12 +575,10 @@ function drawPipe(p){
   ctx.fillStyle='#388E3C';ctx.fillRect(p.x+PIPE_W-8,0,8,p.topH-capH);
   ctx.fillStyle='#2E7D32';roundRect(ctx,p.x-capEx/2,p.topH-capH,PIPE_W+capEx,capH,4);ctx.fill();
 }
-
 function drawBird(){
-  const {x,y,angle,wingAngle}=bird;
+  const{x,y,angle,wingAngle}=bird;
   ctx.save();ctx.translate(x,y);ctx.rotate(angle);
-  ctx.fillStyle='#FFA500';ctx.beginPath();
-  ctx.ellipse(-6,Math.sin(wingAngle)*8,10,6,-0.4,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#FFA500';ctx.beginPath();ctx.ellipse(-6,Math.sin(wingAngle)*8,10,6,-0.4,0,Math.PI*2);ctx.fill();
   ctx.fillStyle='#FFD700';ctx.beginPath();ctx.ellipse(0,0,BIRD_R,BIRD_R-2,0,0,Math.PI*2);ctx.fill();
   ctx.strokeStyle='#CC9900';ctx.lineWidth=1.5;ctx.stroke();
   ctx.fillStyle='#FFF3C0';ctx.beginPath();ctx.ellipse(4,4,9,7,0.3,0,Math.PI*2);ctx.fill();
@@ -585,14 +588,12 @@ function drawBird(){
   ctx.fillStyle='#FF6B00';ctx.beginPath();ctx.moveTo(13,-2);ctx.lineTo(21,0);ctx.lineTo(13,4);ctx.closePath();ctx.fill();
   ctx.restore();
 }
-
 function drawScore(){
   if(state!=='playing')return;
   ctx.textAlign='center';ctx.fillStyle='rgba(255,255,255,0.9)';
   ctx.font='bold 26px "Press Start 2P"';ctx.shadowColor='rgba(0,0,0,0.25)';ctx.shadowBlur=4;
   ctx.fillText(score,W/2,60);ctx.shadowBlur=0;ctx.textAlign='left';
 }
-
 function drawOverlay(){
   if(state==='idle'){
     ctx.fillStyle='rgba(0,0,0,0.28)';ctx.fillRect(0,0,W,H);
@@ -602,16 +603,15 @@ function drawOverlay(){
     ctx.font='7px "Press Start 2P"';ctx.fillStyle='#555';
     ctx.fillText('TAP / SPACE / CLICK',W/2,H/2);ctx.fillText('TO FLAP',W/2,H/2+20);
     ctx.font='28px sans-serif';ctx.fillText('🐦',W/2,H/2+52);
-
   } else if(state==='dead'){
     ctx.fillStyle='rgba(0,0,0,0.45)';ctx.fillRect(0,0,W,H);
     ctx.fillStyle='rgba(255,255,255,0.95)';roundRect(ctx,W/2-120,H/2-95,240,185,14);ctx.fill();
     ctx.fillStyle='#CC2222';ctx.font='13px "Press Start 2P"';ctx.textAlign='center';
     ctx.fillText('GAME OVER',W/2,H/2-60);
     ctx.fillStyle='#333';ctx.font='8px "Press Start 2P"';
-    ctx.fillText('SCORE: '+score,             W/2,H/2-27);
-    ctx.fillText('BEST:  '+progress.best,     W/2,H/2-7);
-    ctx.fillText('GAMES: '+progress.gamesPlayed,W/2,H/2+13);
+    ctx.fillText('SCORE: '+score,               W/2,H/2-27);
+    ctx.fillText('BEST:  '+progress.best,        W/2,H/2-7);
+    ctx.fillText('GAMES: '+progress.gamesPlayed, W/2,H/2+13);
     if(score>=progress.best&&score>0){ctx.fillStyle='#E67E00';ctx.fillText('NEW BEST!',W/2,H/2+33);}
     ctx.fillStyle='#228822';roundRect(ctx,W/2-70,H/2+50,140,34,8);ctx.fill();
     ctx.fillStyle='#fff';ctx.font='8px "Press Start 2P"';ctx.fillText('PLAY AGAIN',W/2,H/2+71);
@@ -619,7 +619,7 @@ function drawOverlay(){
   ctx.textAlign='left';
 }
 
-// ── Update ────────────────────────────────────────────────────
+// ── Update / render / loop ────────────────────────────────────
 function update(){
   frame++;
   if(state==='playing'){
@@ -641,13 +641,11 @@ function update(){
     for(const c of clouds){c.x-=0.3;if(c.x<-30)c.x=W+30;}
   }
 }
-
 function render(){
   drawSky();drawClouds();
   for(const p of pipes)drawPipe(p);
   drawGround();drawBird();drawScore();drawOverlay();
 }
-
 function loop(){update();render();requestAnimationFrame(loop);}
 
 init();
