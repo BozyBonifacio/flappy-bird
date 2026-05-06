@@ -220,43 +220,40 @@ async function lbFetch() {
 
 async function lbSubmit(name, score) {
   try {
-    // First remove old entry for same player
-    const existing = await fetch(DB_ENDPOINT + `?orderBy="name"&equalTo="${encodeURIComponent(name)}"&print=pretty`);
-    if (existing.ok) {
-      const old = await existing.json();
-      if (old) {
-        for (const key of Object.keys(old)) {
-          await fetch(`${FIREBASE_URL.replace(/\/$/, '')}/leaderboard/${key}.json`, { method: 'DELETE' });
-        }
-      }
+    // Fetch all current scores
+    const res = await fetch(DB_ENDPOINT);
+    let board = [];
+    if (res.ok) {
+      const data = await res.json();
+      if (data) board = Object.entries(data).map(([k,v]) => ({key:k,...v}));
     }
-    // Push new score
-    const res = await fetch(DB_ENDPOINT, {
+
+    // Remove existing entry for same player name
+    const existing = board.find(e => e.name.toLowerCase() === name.toLowerCase());
+    if (existing) {
+      await fetch(`${FIREBASE_URL.replace(/\/$/, '')}/leaderboard/${existing.key}.json`, { method: 'DELETE' });
+      board = board.filter(e => e.key !== existing.key);
+    }
+
+    // Add new score
+    board.push({ name: name.trim(), score, date: new Date().toLocaleDateString() });
+    board.sort((a, b) => b.score - a.score);
+
+    // Keep only top 10 — delete extras
+    const toDelete = board.slice(LB_MAX);
+    for (const e of toDelete) {
+      if (e.key) await fetch(`${FIREBASE_URL.replace(/\/$/, '')}/leaderboard/${e.key}.json`, { method: 'DELETE' });
+    }
+
+    // Push the new entry
+    const post = await fetch(DB_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: name.trim(), score, date: new Date().toLocaleDateString() })
     });
-    if (!res.ok) { console.error('LB submit:', res.status, await res.text()); return false; }
-
-    // Trim to top 10 — fetch all, keep top 10, delete the rest
-    await trimLeaderboard();
+    if (!post.ok) { console.error('LB submit:', post.status, await post.text()); return false; }
     return true;
   } catch(e) { console.error('LB submit error:', e); return false; }
-}
-
-async function trimLeaderboard() {
-  try {
-    const res  = await fetch(DB_ENDPOINT);
-    if (!res.ok) return;
-    const data = await res.json();
-    if (!data) return;
-    const entries = Object.entries(data).map(([k,v]) => ({key:k,...v}));
-    entries.sort((a,b) => b.score - a.score);
-    const toDelete = entries.slice(LB_MAX);
-    for (const e of toDelete) {
-      await fetch(`${FIREBASE_URL.replace(/\/$/, '')}/leaderboard/${e.key}.json`, { method: 'DELETE' });
-    }
-  } catch(e) {}
 }
 
 async function renderLeaderboard() {
