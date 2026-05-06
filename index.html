@@ -73,18 +73,6 @@
     .rank-3 td { color: #CD7F32 !important; }
     .rank-badge { display: inline-block; width: 20px; text-align: center; }
     #lb-status { color: #888; font-size: 8px; padding: 20px 0; line-height: 2; }
-
-    /* Setup card shown when Firebase not configured */
-    #firebase-setup {
-      display: none; background: #12121f; border: 1px solid #b8860b;
-      border-radius: 10px; padding: 14px; font-size: 7px; color: #ccc;
-      line-height: 2.2; text-align: left; margin-bottom: 10px;
-    }
-    #firebase-setup a { color: #FFD700; }
-    #firebase-setup code {
-      background: #222; padding: 1px 5px; border-radius: 4px; color: #7fc; font-size: 7px;
-    }
-
     #name-modal {
       display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.82);
       align-items: center; justify-content: center; z-index: 200;
@@ -160,13 +148,6 @@
 <div class="panel-bg" id="lb-panel">
   <div class="panel-box">
     <h2 style="color:#FFD700;">🌍 GLOBAL LEADERBOARD</h2>
-    <div id="firebase-setup">
-      ⚠️ SETUP NEEDED — 3 steps:<br><br>
-      1. Go to <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a><br>
-      2. New project → Realtime Database → Start in <b>test mode</b><br>
-      3. Copy your DB URL (e.g. <code>https://your-app.firebaseio.com</code>)<br>
-         and paste it into index.html line: <code>FIREBASE_URL</code>
-    </div>
     <div id="lb-status">LOADING...</div>
     <table id="lb-table" style="display:none;">
       <thead><tr><th>#</th><th>PLAYER</th><th>SCORE</th><th>DATE</th></tr></thead>
@@ -196,83 +177,59 @@
 
 <script>
 // ═══════════════════════════════════════════════════════════
-//  ▼▼▼  PASTE YOUR FIREBASE DATABASE URL BELOW  ▼▼▼
-//  Example: 'https://my-flappy-bird-default-rtdb.firebaseio.com'
+//  YOUR FIREBASE DATABASE URL
 // ═══════════════════════════════════════════════════════════
-const FIREBASE_URL = 'https://flappy-bird-2f7e6-default-rtdb.asia-southeast1.firebasedatabase.app/';
+const FIREBASE_URL = 'https://flappy-bird-2f7e6-default-rtdb.asia-southeast1.firebasedatabase.app';
 // ═══════════════════════════════════════════════════════════
 
-const LB_MAX     = 10;
-const configured = FIREBASE_URL !== 'YOUR_FIREBASE_URL_HERE';
-const DB_ENDPOINT = configured ? `${FIREBASE_URL.replace(/\/$/, '')}/leaderboard.json` : '';
+const LB_MAX  = 10;
+const LB_URL  = FIREBASE_URL.replace(/\/$/, '') + '/leaderboard';
 
-// ── Firebase REST helpers (no SDK needed!) ────────────────
+// ── Firebase REST API helpers ─────────────────────────────
+// Read all leaderboard entries
 async function lbFetch() {
   try {
-    const res = await fetch(DB_ENDPOINT);
-    if (!res.ok) { console.error('LB fetch:', res.status, await res.text()); return null; }
+    const res = await fetch(LB_URL + '.json');
+    if (!res.ok) { console.error('lbFetch failed:', res.status, await res.text()); return null; }
     const data = await res.json();
     if (!data) return [];
-    // Firebase returns an object { key: {name,score,date}, ... } — convert to array
-    return Object.values(data).sort((a, b) => b.score - a.score).slice(0, LB_MAX);
-  } catch(e) { console.error('LB fetch error:', e); return null; }
+    // Convert Firebase object { firebaseKey: {name,score,date} } → sorted array
+    return Object.entries(data)
+      .map(([key, val]) => ({ key, ...val }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, LB_MAX);
+  } catch(e) { console.error('lbFetch error:', e); return null; }
 }
 
+// Write a single entry using player name as the key (auto-deduplicates)
 async function lbSubmit(name, score) {
   try {
-    // Fetch all current scores
-    const res = await fetch(DB_ENDPOINT);
-    let board = [];
-    if (res.ok) {
-      const data = await res.json();
-      if (data) board = Object.entries(data).map(([k,v]) => ({key:k,...v}));
-    }
+    const safeName = name.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+    const entry    = { name: name.trim(), score, date: new Date().toLocaleDateString() };
 
-    // Remove existing entry for same player name
-    const existing = board.find(e => e.name.toLowerCase() === name.toLowerCase());
-    if (existing) {
-      await fetch(`${FIREBASE_URL.replace(/\/$/, '')}/leaderboard/${existing.key}.json`, { method: 'DELETE' });
-      board = board.filter(e => e.key !== existing.key);
-    }
-
-    // Add new score
-    board.push({ name: name.trim(), score, date: new Date().toLocaleDateString() });
-    board.sort((a, b) => b.score - a.score);
-
-    // Keep only top 10 — delete extras
-    const toDelete = board.slice(LB_MAX);
-    for (const e of toDelete) {
-      if (e.key) await fetch(`${FIREBASE_URL.replace(/\/$/, '')}/leaderboard/${e.key}.json`, { method: 'DELETE' });
-    }
-
-    // Push the new entry
-    const post = await fetch(DB_ENDPOINT, {
-      method: 'POST',
+    // Use PUT with player name as key — this overwrites any previous entry for that name
+    const res = await fetch(`${LB_URL}/${safeName}.json`, {
+      method:  'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name.trim(), score, date: new Date().toLocaleDateString() })
+      body:    JSON.stringify(entry)
     });
-    if (!post.ok) { console.error('LB submit:', post.status, await post.text()); return false; }
+
+    if (!res.ok) { console.error('lbSubmit failed:', res.status, await res.text()); return false; }
+    console.log('Score submitted successfully!', entry);
     return true;
-  } catch(e) { console.error('LB submit error:', e); return false; }
+  } catch(e) { console.error('lbSubmit error:', e); return false; }
 }
 
+// Render leaderboard table
 async function renderLeaderboard() {
   const statusEl = document.getElementById('lb-status');
   const tableEl  = document.getElementById('lb-table');
-  const setupEl  = document.getElementById('firebase-setup');
   const tbody    = document.getElementById('lb-body');
 
-  tableEl.style.display  = 'none';
+  tableEl.style.display = 'none';
   statusEl.style.display = 'block';
-  setupEl.style.display  = 'none';
-
-  if (!configured) {
-    statusEl.style.display = 'none';
-    setupEl.style.display  = 'block';
-    return;
-  }
-
   statusEl.textContent = 'LOADING...';
+
   const board = await lbFetch();
 
   if (board === null) {
@@ -291,7 +248,7 @@ async function renderLeaderboard() {
       <td><span class="rank-badge">${medals[i] || (i+1)}</span></td>
       <td>${escHtml(e.name)}</td>
       <td>${e.score}</td>
-      <td style="font-size:6px;color:#555;">${e.date||''}</td>
+      <td style="font-size:6px;color:#555;">${e.date || ''}</td>
     </tr>
   `).join('');
   tableEl.style.display = 'table';
@@ -301,7 +258,7 @@ function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// ── Local save / load ─────────────────────────────────────
+// ── Local progress save / load ────────────────────────────
 const SAVE_KEY = 'flappy_progress';
 function defaultSave() {
   return { best:0, lastScore:0, gamesPlayed:0, totalPipes:0,
@@ -315,100 +272,124 @@ function saveProgress(data) {
   try { localStorage.setItem(SAVE_KEY,JSON.stringify(data)); showToast('PROGRESS SAVED ✓','rgba(34,136,34,0.92)'); }
   catch(e){}
 }
-function showToast(msg,bg){
-  const t=document.getElementById('save-toast');
-  t.textContent=msg; t.style.background=bg||'rgba(34,136,34,0.92)';
-  t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200);
+function showToast(msg, bg) {
+  const t = document.getElementById('save-toast');
+  t.textContent = msg; t.style.background = bg || 'rgba(34,136,34,0.92)';
+  t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200);
 }
 
-// ── Game engine ───────────────────────────────────────────
-const canvas=document.getElementById('game-canvas'),ctx=canvas.getContext('2d');
-const scoreEl=document.getElementById('score-display'),bestEl=document.getElementById('best-display');
-const W=canvas.width,H=canvas.height;
-const GRAVITY=0.45,FLAP_VEL=-8.5,PIPE_W=54,PIPE_GAP=148,PIPE_SPEED=2.6,GROUND_H=64,BIRD_R=17,BIRD_X=80;
+// ── Canvas / game setup ───────────────────────────────────
+const canvas  = document.getElementById('game-canvas');
+const ctx     = canvas.getContext('2d');
+const scoreEl = document.getElementById('score-display');
+const bestEl  = document.getElementById('best-display');
+const W = canvas.width, H = canvas.height;
 
-let state,bird,pipes,score,frame,groundOff,clouds;
-let progress=loadProgress();
+const GRAVITY=0.45, FLAP_VEL=-8.5, PIPE_W=54, PIPE_GAP=148,
+      PIPE_SPEED=2.6, GROUND_H=64, BIRD_R=17, BIRD_X=80;
 
-function updateBestDisplay(){ bestEl.textContent=progress.best; }
+let state, bird, pipes, score, frame, groundOff, clouds;
+let progress = loadProgress();
 
-function init(){
-  state='idle';
-  bird={x:BIRD_X,y:H/2-40,vy:0,angle:0,wingAngle:0};
-  pipes=[];score=0;frame=0;groundOff=0;
-  clouds=[{x:60,y:70,r:18},{x:180,y:50,r:14},{x:300,y:80,r:20},{x:100,y:110,r:12},{x:260,y:105,r:16}];
-  scoreEl.textContent=score; updateBestDisplay();
+function updateBestDisplay() { bestEl.textContent = progress.best; }
+
+function init() {
+  state = 'idle';
+  bird  = { x:BIRD_X, y:H/2-40, vy:0, angle:0, wingAngle:0 };
+  pipes = []; score = 0; frame = 0; groundOff = 0;
+  clouds = [{x:60,y:70,r:18},{x:180,y:50,r:14},{x:300,y:80,r:20},{x:100,y:110,r:12},{x:260,y:105,r:16}];
+  scoreEl.textContent = score;
+  updateBestDisplay();
 }
 
-async function onGameOver(){
-  progress.gamesPlayed++; progress.totalPipes+=score; progress.lastScore=score;
-  progress.lastPlayed=new Date().toLocaleDateString();
-  if(!progress.firstPlayed||progress.firstPlayed==='—') progress.firstPlayed=new Date().toLocaleDateString();
-  if(score>progress.best) progress.best=score;
-  saveProgress(progress); updateBestDisplay();
-  if(score>0) showNameModal(score);
+async function onGameOver() {
+  progress.gamesPlayed++;
+  progress.totalPipes += score;
+  progress.lastScore   = score;
+  progress.lastPlayed  = new Date().toLocaleDateString();
+  if (!progress.firstPlayed || progress.firstPlayed === '—') progress.firstPlayed = new Date().toLocaleDateString();
+  if (score > progress.best) progress.best = score;
+  saveProgress(progress);
+  updateBestDisplay();
+  if (score > 0) showNameModal(score);
 }
 
-function showNameModal(s){
-  document.getElementById('modal-score').textContent=s;
-  document.getElementById('player-name-input').value=progress.playerName||'';
+// ── Name modal ────────────────────────────────────────────
+function showNameModal(s) {
+  document.getElementById('modal-score').textContent = s;
+  document.getElementById('player-name-input').value = progress.playerName || '';
   document.getElementById('name-modal').classList.add('visible');
 }
 
-document.getElementById('submit-score-btn').addEventListener('click',async()=>{
-  const input=document.getElementById('player-name-input');
-  const name=input.value.trim();
-  if(!name){input.style.borderColor='#cc2222';setTimeout(()=>input.style.borderColor='#555',800);return;}
-  progress.playerName=name; saveProgress(progress);
+document.getElementById('submit-score-btn').addEventListener('click', async () => {
+  const input = document.getElementById('player-name-input');
+  const name  = input.value.trim();
+  if (!name) { input.style.borderColor='#cc2222'; setTimeout(()=>input.style.borderColor='#555',800); return; }
+  progress.playerName = name;
+  saveProgress(progress);
   document.getElementById('name-modal').classList.remove('visible');
-  if(!configured){showToast('⚠️ FIREBASE NOT CONFIGURED','rgba(180,100,0,0.95)');return;}
-  showToast('SUBMITTING...','rgba(184,134,11,0.95)');
-  const ok=await lbSubmit(name,score);
-  showToast(ok?'🌍 SCORE SUBMITTED!':'❌ SUBMIT FAILED', ok?'rgba(26,122,184,0.95)':'rgba(150,30,30,0.95)');
+  showToast('SUBMITTING...', 'rgba(184,134,11,0.95)');
+  const ok = await lbSubmit(name, score);
+  showToast(
+    ok ? '🌍 SCORE SUBMITTED!' : '❌ SUBMIT FAILED — CHECK CONSOLE',
+    ok ? 'rgba(26,122,184,0.95)' : 'rgba(150,30,30,0.95)'
+  );
 });
-document.getElementById('skip-submit-btn').addEventListener('click',()=>document.getElementById('name-modal').classList.remove('visible'));
 
-document.getElementById('stats-btn').addEventListener('click',()=>{
-  const p=progress;
-  document.getElementById('st-best').textContent=p.best;
-  document.getElementById('st-last').textContent=p.lastScore;
-  document.getElementById('st-games').textContent=p.gamesPlayed;
-  document.getElementById('st-pipes').textContent=p.totalPipes;
-  document.getElementById('st-avg').textContent=p.gamesPlayed>0?(p.totalPipes/p.gamesPlayed).toFixed(1):'0.0';
-  document.getElementById('st-name').textContent=p.playerName||'—';
-  document.getElementById('st-first').textContent=p.firstPlayed||'—';
-  document.getElementById('st-date').textContent=p.lastPlayed||'—';
+document.getElementById('skip-submit-btn').addEventListener('click', () => {
+  document.getElementById('name-modal').classList.remove('visible');
+});
+
+// ── Stats panel ───────────────────────────────────────────
+document.getElementById('stats-btn').addEventListener('click', () => {
+  const p = progress;
+  document.getElementById('st-best').textContent  = p.best;
+  document.getElementById('st-last').textContent  = p.lastScore;
+  document.getElementById('st-games').textContent = p.gamesPlayed;
+  document.getElementById('st-pipes').textContent = p.totalPipes;
+  document.getElementById('st-avg').textContent   = p.gamesPlayed>0?(p.totalPipes/p.gamesPlayed).toFixed(1):'0.0';
+  document.getElementById('st-name').textContent  = p.playerName||'—';
+  document.getElementById('st-first').textContent = p.firstPlayed||'—';
+  document.getElementById('st-date').textContent  = p.lastPlayed||'—';
   document.getElementById('stats-panel').classList.add('visible');
 });
-document.getElementById('stats-close').addEventListener('click',()=>document.getElementById('stats-panel').classList.remove('visible'));
-document.getElementById('stats-reset').addEventListener('click',()=>{
-  if(confirm('Reset ALL local progress? Leaderboard scores are kept.')){
-    progress=defaultSave();saveProgress(progress);updateBestDisplay();
+document.getElementById('stats-close').addEventListener('click', () => document.getElementById('stats-panel').classList.remove('visible'));
+document.getElementById('stats-reset').addEventListener('click', () => {
+  if (confirm('Reset ALL local progress? Leaderboard scores are kept.')) {
+    progress = defaultSave(); saveProgress(progress); updateBestDisplay();
     document.getElementById('stats-panel').classList.remove('visible');
   }
 });
-document.getElementById('lb-btn').addEventListener('click',()=>{document.getElementById('lb-panel').classList.add('visible');renderLeaderboard();});
-document.getElementById('lb-close').addEventListener('click',()=>document.getElementById('lb-panel').classList.remove('visible'));
-document.getElementById('lb-refresh').addEventListener('click',()=>renderLeaderboard());
 
-function flap(){
-  if(state==='dead'){init();return;}
-  if(state==='idle')state='playing';
-  bird.vy=FLAP_VEL;
+// ── Leaderboard panel ─────────────────────────────────────
+document.getElementById('lb-btn').addEventListener('click', () => {
+  document.getElementById('lb-panel').classList.add('visible');
+  renderLeaderboard();
+});
+document.getElementById('lb-close').addEventListener('click',   () => document.getElementById('lb-panel').classList.remove('visible'));
+document.getElementById('lb-refresh').addEventListener('click', () => renderLeaderboard());
+
+// ── Game input ────────────────────────────────────────────
+function flap() {
+  if (state==='dead') { init(); return; }
+  if (state==='idle') state = 'playing';
+  bird.vy = FLAP_VEL;
 }
-canvas.addEventListener('click',flap);
-canvas.addEventListener('touchstart',e=>{e.preventDefault();flap();},{passive:false});
-document.addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();flap();}});
+canvas.addEventListener('click', flap);
+canvas.addEventListener('touchstart', e => { e.preventDefault(); flap(); }, {passive:false});
+document.addEventListener('keydown', e => { if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();flap();} });
 
-function checkCollision(){
-  const r=BIRD_R-4;
-  if(bird.y+r>=H-GROUND_H||bird.y-r<=0)return true;
-  for(const p of pipes)
-    if(bird.x+r>p.x+6&&bird.x-r<p.x+PIPE_W-6)
-      if(bird.y-r<p.topH||bird.y+r>p.topH+PIPE_GAP)return true;
+// ── Collision ─────────────────────────────────────────────
+function checkCollision() {
+  const r = BIRD_R - 4;
+  if (bird.y+r >= H-GROUND_H || bird.y-r <= 0) return true;
+  for (const p of pipes)
+    if (bird.x+r > p.x+6 && bird.x-r < p.x+PIPE_W-6)
+      if (bird.y-r < p.topH || bird.y+r > p.topH+PIPE_GAP) return true;
   return false;
 }
 
+// ── Draw helpers ──────────────────────────────────────────
 function roundRect(c,x,y,w,h,r){
   c.beginPath();c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.quadraticCurveTo(x+w,y,x+w,y+r);
   c.lineTo(x+w,y+h-r);c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
@@ -474,49 +455,51 @@ function drawOverlay(){
     ctx.font='7px "Press Start 2P"';ctx.fillStyle='#555';
     ctx.fillText('TAP / SPACE / CLICK',W/2,H/2);ctx.fillText('TO FLAP',W/2,H/2+20);
     ctx.font='28px sans-serif';ctx.fillText('🐦',W/2,H/2+52);
-  }else if(state==='dead'){
+  } else if(state==='dead'){
     ctx.fillStyle='rgba(0,0,0,0.45)';ctx.fillRect(0,0,W,H);
     ctx.fillStyle='rgba(255,255,255,0.95)';roundRect(ctx,W/2-120,H/2-95,240,185,14);ctx.fill();
     ctx.fillStyle='#CC2222';ctx.font='13px "Press Start 2P"';ctx.textAlign='center';
     ctx.fillText('GAME OVER',W/2,H/2-60);
     ctx.fillStyle='#333';ctx.font='8px "Press Start 2P"';
-    ctx.fillText('SCORE: '+score,W/2,H/2-27);
-    ctx.fillText('BEST:  '+progress.best,W/2,H/2-7);
-    ctx.fillText('GAMES: '+progress.gamesPlayed,W/2,H/2+13);
+    ctx.fillText('SCORE: '+score,               W/2,H/2-27);
+    ctx.fillText('BEST:  '+progress.best,        W/2,H/2-7);
+    ctx.fillText('GAMES: '+progress.gamesPlayed, W/2,H/2+13);
     if(score>=progress.best&&score>0){ctx.fillStyle='#E67E00';ctx.fillText('NEW BEST!',W/2,H/2+33);}
     ctx.fillStyle='#228822';roundRect(ctx,W/2-70,H/2+50,140,34,8);ctx.fill();
     ctx.fillStyle='#fff';ctx.font='8px "Press Start 2P"';ctx.fillText('PLAY AGAIN',W/2,H/2+71);
   }
   ctx.textAlign='left';
 }
+
+// ── Game loop ─────────────────────────────────────────────
 function update(){
   frame++;
   if(state==='playing'){
-    bird.vy+=GRAVITY;bird.y+=bird.vy;
+    bird.vy+=GRAVITY; bird.y+=bird.vy;
     bird.angle=Math.max(-0.5,Math.min(Math.PI/2.5,bird.vy*0.055));
     bird.wingAngle+=0.35;
     groundOff=(groundOff+PIPE_SPEED)%60;
     for(const c of clouds){c.x-=0.4;if(c.x<-30)c.x=W+30;}
-    if(frame%88===0)pipes.push({x:W+PIPE_W,topH:60+Math.random()*(H-GROUND_H-PIPE_GAP-100),passed:false});
+    if(frame%88===0) pipes.push({x:W+PIPE_W, topH:60+Math.random()*(H-GROUND_H-PIPE_GAP-100), passed:false});
     for(const p of pipes){
       p.x-=PIPE_SPEED;
       if(!p.passed&&p.x+PIPE_W<bird.x){p.passed=true;score++;scoreEl.textContent=score;}
     }
     pipes=pipes.filter(p=>p.x>-PIPE_W-10);
     if(checkCollision()){state='dead';onGameOver();}
-  }else if(state==='idle'){
+  } else if(state==='idle'){
     bird.y=H/2-40+Math.sin(frame*0.04)*8;
-    bird.wingAngle+=0.2;bird.angle=Math.sin(frame*0.04)*0.12;
+    bird.wingAngle+=0.2; bird.angle=Math.sin(frame*0.04)*0.12;
     for(const c of clouds){c.x-=0.3;if(c.x<-30)c.x=W+30;}
   }
 }
 function render(){
-  drawSky();drawClouds();
-  for(const p of pipes)drawPipe(p);
-  drawGround();drawBird();drawScore();drawOverlay();
+  drawSky(); drawClouds();
+  for(const p of pipes) drawPipe(p);
+  drawGround(); drawBird(); drawScore(); drawOverlay();
 }
-function loop(){update();render();requestAnimationFrame(loop);}
-init();loop();
+function loop(){ update(); render(); requestAnimationFrame(loop); }
+init(); loop();
 </script>
 </body>
 </html>
